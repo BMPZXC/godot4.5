@@ -6,71 +6,43 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    name: ${{ matrix.name }}
+    name: Editor (MSVC - No 3D)
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Editor (MSVC)
-            cache-name: windows-editor-no3d
-            target: editor
-            bin: ./bin/godot.windows.editor.x86_64.exe
-            compiler: msvc
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Restore Godot build cache
-        uses: ./.github/actions/godot-cache-restore
-        with:
-          cache-name: ${{ matrix.cache-name }}
-        continue-on-error: true
-
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      # 关键：在此步骤，直接使用硬编码的完整参数列表
-      - name: Compilation
-        uses: ./.github/actions/godot-build
-        with:
-          # 将所有SCons参数直接、完整地写在这里，避免通过env变量拼接
-          scons-flags: >
-            platform=windows
-            target=${{ matrix.target }}
-            dev_mode=yes
-            debug_symbols=no
-            d3d12=no
-            disable_3d=yes
-            disable_physics_3d=yes
-            disable_xr=yes
-            module_godot_physics_3d_enabled=no
-            module_jolt_physics_enabled=no
-            module_msdfgen_enabled=no
-            "angle_libs=${{ github.workspace }}/"
-            "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-            windows_subsystem=console
-            redirect_build_objects=no
-          # 注意：这里不再引用 env.SCONS_FLAGS，也不拼接 matrix.scons-flags
-
-      - name: Save Godot build cache
-        uses: ./.github/actions/godot-cache-save
-        with:
-          cache-name: ${{ matrix.cache-name }}
-        continue-on-error: true
-
-      - name: Prepare artifact
+      - name: Compile Godot (No D3D12, No 3D)
+        shell: bash
         run: |
-          Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
+          # 使用 scons 命令行直接编译，避免使用 godot-build action
+          # 设置所有必要的参数
+          scons platform=windows \
+                target=editor \
+                dev_mode=yes \
+                debug_symbols=no \
+                # 关键：禁用 D3D12 及其所有相关依赖
+                d3d12=no \
+                # 禁用 3D 相关功能
+                disable_3d=yes \
+                disable_physics_3d=yes \
+                disable_xr=yes \
+                module_godot_physics_3d_enabled=no \
+                module_jolt_physics_enabled=no \
+                module_msdfgen_enabled=no \
+                # 静态库路径（如果不需要可以注释掉）
+                # "angle_libs=${{ github.workspace }}/" \
+                # "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/" \
+                # 控制台子系统
+                windows_subsystem=console
 
-      - name: Upload artifact
-        uses: ./.github/actions/upload-artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.cache-name }}
-
-      - name: Basic test
-        run: |
-          ${{ matrix.bin }} --version
+          name: godot-windows-editor-no3d
+          path: bin/godot.windows.editor.x86_64.exe
