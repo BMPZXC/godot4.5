@@ -1,4 +1,4 @@
-name: 🏁 Windows Builds
+name: 🏁 Windows Builds (Custom - No 3D/Physics/XR)
 on:
   workflow_call:
   workflow_dispatch:
@@ -9,6 +9,10 @@ env:
     debug_symbols=no
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
+    # 第一步：添加基础的 3D 禁用选项
+    disable_3d=yes
+    disable_physics_3d=yes
+    disable_xr=yes
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
 
@@ -22,7 +26,7 @@ jobs:
       matrix:
         include:
           - name: Editor (target=editor)
-            cache-name: windows-editor
+            cache-name: windows-editor-no3d-v1
             target: editor
             scons-flags: >-
               windows_subsystem=console
@@ -44,7 +48,6 @@ jobs:
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      # 关键修复：安装 D3D12 依赖（而不是使用 d3d12=no）
       - name: Install Direct3D 12 dependencies
         shell: bash
         run: |
@@ -99,3 +102,4 @@ jobs:
       - name: Basic test
         run: |
           ${{ matrix.bin }} --version
+          echo "构建完成！禁用功能：3D、物理3D、XR"
