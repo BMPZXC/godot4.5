@@ -152,13 +152,16 @@ jobs:
           
           echo "编译完成！"
 
-      - name: Analyze binary size
+      - name: Check generated files
         run: |
-          echo "📊 生成文件分析："
-          ls -lh bin/*.exe
-          echo ""
-          echo "文件大小明细："
-          size bin/godot.windows.template_release.x86_64.exe || echo "size命令不可用"
+          echo "检查生成的文件..."
+          if exist bin\*.exe (
+          echo "✅ 找到生成的可执行文件"
+          dir bin\*.exe
+          ) else (
+          echo "❌ 未找到可执行文件"
+          exit 1
+          )
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
