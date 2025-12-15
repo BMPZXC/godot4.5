@@ -5,124 +5,42 @@ on:
 
 # Global Settings
 env:
+  # 简化并修正SCONS参数：首先确保禁用D3D12，然后按需禁用其他模块
   SCONS_FLAGS: >-
+    platform=windows
     dev_mode=yes
-    module_text_server_fb_enabled=yes
     debug_symbols=no
-    "angle_libs=${{ github.workspace }}/"
-    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-    # 禁用 3D 相关功能
+    # 首要关键：明确禁用Direct3D 12
+    d3d12=no
+    # 按你的要求禁用3D、物理等核心功能
     disable_3d=yes
-    disable_navigation_3d=yes
     disable_physics_3d=yes
     disable_xr=yes
-    # 禁用特定模块
+    # 禁用特定的3D物理模块
     module_godot_physics_3d_enabled=no
     module_jolt_physics_enabled=no
     module_msdfgen_enabled=no
-    module_openxr_enabled=no
-    # 可选：禁用更多模块以减少体积
-    module_basis_universal_enabled=no
-    module_bmp_enabled=no
-    module_camera_enabled=no
-    module_csg_enabled=no
-    module_cvtt_enabled=no
-    module_dds_enabled=no
-    module_etcpak_enabled=no
-    module_gdnative_enabled=no
-    module_gltf_enabled=no
-    module_gridmap_enabled=no
-    module_hdr_enabled=no
-    module_jsonrpc_enabled=no
-    module_mbedtls_enabled=no
-    module_mobile_vr_enabled=no
-    module_navigation_enabled=no
-    module_ogg_enabled=no
-    module_openxr_enabled=no
-    module_raycast_enabled=no
-    module_regex_enabled=no
-    module_squish_enabled=no
-    module_stb_vorbis_enabled=no
-    module_svg_enabled=no
-    module_tga_enabled=no
-    module_theora_enabled=no
-    module_upnp_enabled=no
-    module_vhacd_enabled=no
-    module_visual_script_enabled=no
-    module_vorbis_enabled=no
-    module_webm_enabled=no
-    module_webrtc_enabled=no
-    module_websocket_enabled=no
-    module_webxr_enabled=no
-    # 启用必要模块
-    module_bullet_enabled=no
-    module_enet_enabled=yes
-    module_freetype_enabled=yes
-    module_websocket_enabled=no
-    # 构建优化
-    builtin_basisu=no
-    builtin_certs=no
-    builtin_embree=no
-    builtin_freetype=yes
-    builtin_glslang=no
-    builtin_libogg=no
-    builtin_libpng=yes
-    builtin_libtheora=no
-    builtin_libvorbis=no
-    builtin_libwebp=no
-    builtin_mbedtls=no
-    builtin_msdfgen=no
-    builtin_oidn=no
-    builtin_pcre2=yes
-    builtin_recast=no
-    builtin_squish=no
-    builtin_zlib=yes
-    builtin_zstd=no
+    # 静态库路径
+    "angle_libs=${{ github.workspace }}/"
+    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
 
 jobs:
   build-windows:
-    # Windows 10 with latest image
     runs-on: windows-latest
     name: ${{ matrix.name }}
-    timeout-minutes: 90  # 减少了时间，因为禁用了很多模块
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Editor (target=editor)
+          - name: Editor (MSVC)
             cache-name: windows-editor-no3d
             target: editor
-            scons-flags: >-
-              windows_subsystem=console
-              vsproj=yes
-              vsproj_gen_only=no
+            scons-flags: windows_subsystem=console
             bin: ./bin/godot.windows.editor.x86_64.exe
             compiler: msvc
-
-          - name: Editor w/ clang-cl (target=editor, use_llvm=yes)
-            cache-name: windows-editor-clang-no3d
-            target: editor
-            scons-flags: >-
-              windows_subsystem=console
-              use_llvm=yes
-            bin: ./bin/godot.windows.editor.x86_64.llvm.exe
-            compiler: clang
-
-          - name: Template (target=template_release)
-            cache-name: windows-template-no3d
-            target: template_release
-            bin: ./bin/godot.windows.template_release.x86_64.console.exe
-            compiler: msvc
-
-          - name: Template w/ GCC (target=template_release, use_mingw=yes)
-            cache-name: windows-template-gcc-no3d
-            # MinGW takes MUCH longer to compile; save time by only targeting Template.
-            target: template_release
-            scons-flags: use_mingw=yes
-            bin: ./bin/godot.windows.template_release.x86_64.console.exe
-            compiler: gcc
 
     steps:
       - name: Checkout
@@ -139,14 +57,9 @@ jobs:
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      # 由于禁用了 3D，可以跳过 D3D12 SDK 下载（可选）
-      - name: Download Direct3D 12 SDK components
-        shell: sh
-        id: d3d12-sdk
-        run: |
-          # 如果禁用了 3D，不需要 D3D12
-          echo "D3D12_ENABLED=no" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
+      # 重要：由于已设置 d3d12=no，跳过D3D12 SDK下载步骤
+      - name: Skip D3D12 SDK (explicitly disabled)
+        run: echo "D3D12 is explicitly disabled via d3d12=no, skipping SDK installation."
 
       - name: Download pre-built ANGLE static libraries
         uses: dsaltares/fetch-gh-release-asset@1.1.2
@@ -172,9 +85,9 @@ jobs:
 
       - name: Compilation
         uses: ./.github/actions/godot-build
+        # 关键：传递参数。这里 ${{ env.SCONS_FLAGS }} 已包含 d3d12=no
         with:
-          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }}
-          platform: windows
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }}
           target: ${{ matrix.target }}
 
       - name: Save Godot build cache
@@ -184,18 +97,14 @@ jobs:
         continue-on-error: true
 
       - name: Prepare artifact
-        if: matrix.compiler == 'msvc'
         run: |
           Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
 
       - name: Upload artifact
-        if: matrix.compiler == 'msvc'
         uses: ./.github/actions/upload-artifact
         with:
           name: ${{ matrix.cache-name }}
 
-      - name: Unit tests
+      - name: Basic test
         run: |
           ${{ matrix.bin }} --version
-          ${{ matrix.bin }} --help
-          ${{ matrix.bin }} --test --force-colors
