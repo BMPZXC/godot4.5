@@ -9,8 +9,6 @@ env:
     debug_symbols=no
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-    # 关键：使用 d3d12=no 禁用D3D12
-    d3d12=no
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
 
@@ -18,13 +16,13 @@ jobs:
   build-windows:
     runs-on: windows-latest
     name: ${{ matrix.name }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Editor (target=editor)
-            cache-name: windows-editor-no3d
+            cache-name: windows-editor
             target: editor
             scons-flags: >-
               windows_subsystem=console
@@ -45,6 +43,14 @@ jobs:
 
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
+
+      # 关键修复：安装 D3D12 依赖（而不是使用 d3d12=no）
+      - name: Install Direct3D 12 dependencies
+        shell: bash
+        run: |
+          echo "正在安装 D3D12 SDK 依赖..."
+          python misc/scripts/install_d3d12_sdk_windows.py
+          echo "D3D12 依赖安装完成"
 
       - name: Download pre-built ANGLE static libraries
         uses: dsaltares/fetch-gh-release-asset@1.1.2
