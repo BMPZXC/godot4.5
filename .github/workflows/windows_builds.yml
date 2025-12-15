@@ -1,48 +1,95 @@
-name: 🏁 Windows Builds (Custom - No 3D/Physics/XR)
+name: 🏁 Windows Builds
 on:
   workflow_call:
   workflow_dispatch:
 
+env:
+  SCONS_FLAGS: >-
+    production=yes
+    debug_symbols=no
+    "angle_libs=${{ github.workspace }}/"
+    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
+    # 关键：使用 d3d12=no 禁用D3D12
+    d3d12=no
+  SCONS_CACHE_MSVC_CONFIG: true
+  PYTHONIOENCODING: utf8
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    name: Editor (MSVC - No 3D)
+    name: ${{ matrix.name }}
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Editor (target=editor)
+            cache-name: windows-editor-no3d
+            target: editor
+            scons-flags: >-
+              windows_subsystem=console
+            bin: ./bin/godot.windows.editor.x86_64.exe
+            compiler: msvc
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - name: Restore Godot build cache
+        uses: ./.github/actions/godot-cache-restore
+        with:
+          cache-name: ${{ matrix.cache-name }}
+        continue-on-error: true
+
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      - name: Compile Godot (No D3D12, No 3D)
-        shell: bash
-        run: |
-          # 使用 scons 命令行直接编译，避免使用 godot-build action
-          # 设置所有必要的参数
-          scons platform=windows \
-                target=editor \
-                dev_mode=yes \
-                debug_symbols=no \
-                # 关键：禁用 D3D12 及其所有相关依赖
-                d3d12=no \
-                # 禁用 3D 相关功能
-                disable_3d=yes \
-                disable_physics_3d=yes \
-                disable_xr=yes \
-                module_godot_physics_3d_enabled=no \
-                module_jolt_physics_enabled=no \
-                module_msdfgen_enabled=no \
-                # 静态库路径（如果不需要可以注释掉）
-                # "angle_libs=${{ github.workspace }}/" \
-                # "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/" \
-                # 控制台子系统
-                windows_subsystem=console
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Download pre-built ANGLE static libraries
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
         with:
-          name: godot-windows-editor-no3d
-          path: bin/godot.windows.editor.x86_64.exe
+          repo: godotengine/godot-angle-static
+          version: tags/chromium/6601.2
+          file: godot-angle-static-x86_64-msvc-release.zip
+          target: angle/angle.zip
+
+      - name: Extract pre-built ANGLE static libraries
+        run: Expand-Archive -Force angle/angle.zip ${{ github.workspace }}/
+
+      - name: Download pre-built AccessKit
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
+        with:
+          repo: AccessKit/accesskit-c
+          version: tags/0.17.0
+          file: accesskit-c-0.17.0.zip
+          target: accesskit-c-0.17.0/accesskit_c.zip
+
+      - name: Extract pre-built AccessKit
+        run: unzip -o accesskit-c-0.17.0/accesskit_c.zip
+
+      - name: Compilation
+        uses: ./.github/actions/godot-build
+        with:
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }}
+          platform: windows
+          target: ${{ matrix.target }}
+
+      - name: Save Godot build cache
+        uses: ./.github/actions/godot-cache-save
+        with:
+          cache-name: ${{ matrix.cache-name }}
+        continue-on-error: true
+
+      - name: Prepare artifact
+        run: |
+          Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
+
+      - name: Upload artifact
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: ${{ matrix.cache-name }}
+
+      - name: Basic test
+        run: |
+          ${{ matrix.bin }} --version
