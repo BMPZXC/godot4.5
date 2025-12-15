@@ -1,16 +1,18 @@
-name: 🏁 Windows Templates (Ultra-Light)
+# Minimal Windows workflow: only build export templates (template_release) with the provided
+# disabled_build_options / disabled_classes. Framework and actions are kept close to your original.
+# Run via workflow_dispatch or workflow_call.
+name: 🏁 Windows Templates (Minimal)
 on:
   workflow_call:
   workflow_dispatch:
 
-# Global Settings
 env:
+  # Put the long list of flags here. Keep as a single folded scalar so it's passed as one scons string.
   SCONS_FLAGS: >-
-    # 核心设置
     production=yes
     debug_symbols=no
-    
-    # === 你的核心禁用项 ===
+
+    # Explicit core disables (also implied by disabled_classes)
     disable_3d=yes
     disable_navigation_3d=yes
     disable_physics_3d=yes
@@ -19,144 +21,128 @@ env:
     module_jolt_physics_enabled=no
     module_msdfgen_enabled=no
     module_openxr_enabled=no
-    
-    # === 新增：根据 disabled_classes 推断的可禁模块 ===
-    # 3D 渲染相关
-    module_gltf_enabled=no
-    module_gridmap_enabled=no
-    module_csg_enabled=no
-    module_raycast_enabled=no
-    module_mesh_optimizer_enabled=no
-    
-    # 多媒体编解码器（保留基础图片格式即可）
-    module_basis_universal_enabled=no
-    module_dds_enabled=no
-    module_hdr_enabled=no
-    module_svg_enabled=no
-    module_tga_enabled=no
-    module_webm_enabled=no
-    
-    # 音频相关（disabled_classes 中有大量音频类）
-    module_vorbis_enabled=no
-    module_ogg_enabled=no
-    module_theora_enabled=no
-    module_stb_vorbis_enabled=no
-    
-    # 网络与高级功能
-    module_mbedtls_enabled=no
-    module_upnp_enabled=no
-    module_webrtc_enabled=no
-    module_websocket_enabled=no
-    module_webxr_enabled=no
-    module_jsonrpc_enabled=no
-    module_regex_enabled=no
-    
-    # 其他可选模块
-    module_camera_enabled=no
-    module_mobile_vr_enabled=no
-    module_visual_script_enabled=no
-    module_gdnative_enabled=no
-    
-    # === 内置库精简 ===
-    # 禁用不需要的内置第三方库
-    builtin_basisu=no
-    builtin_certs=no
-    builtin_embree=no
-    builtin_glslang=no
-    builtin_libogg=no
-    builtin_libtheora=no
-    builtin_libvorbis=no
-    builtin_mbedtls=no
-    builtin_msdfgen=no
-    builtin_oidn=no
-    builtin_recast=no
-    builtin_squish=no
-    builtin_zstd=no
-    
-    # 保留必要的2D支持
-    builtin_freetype=yes      # 字体渲染
-    builtin_libpng=yes        # PNG支持
-    builtin_pcre2=yes         # 正则表达式基础
-    builtin_zlib=yes          # 压缩
-    
-    # === 路径参数（考虑是否需要）===
-    # 由于禁用了3D，ANGLE可能不需要，但保留以防兼容性问题
-    # "angle_libs=${{ github.workspace }}/"
-    # "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-    
-    # === 渲染器精简 ===
-    # 既然没有3D，可以进一步限制渲染器
-    vulkan=no                 # 纯2D不需要Vulkan
-    # 但保留D3D12支持以通过编译检查
-    
+
+    # Keep ANGLE / AccessKit paths if you still fetch prebuilt binaries
+    "angle_libs=${{ github.workspace }}/"
+    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
+
+    # Large disabled_classes list (comma separated)
+    disabled_classes="AESContext,AStar2D,AStar3D,AStarGrid2D,AnimatableBody2D,AnimatedTexture,AnimationNode,AnimationNodeStateMachinePlayback,AnimationNodeStateMachineTransition,AnimationTree,AspectRatioContainer,AudioEffect,AudioEffectInstance,AudioListener2D,AudioSample,AudioSamplePlayback,AudioStreamGenerator,AudioStreamInteractive,AudioStreamMicrophone,AudioStreamOggVorbis,AudioStreamPlayback,AudioStreamPlayer2D,AudioStreamPlaylist,AudioStreamPolyphonic,AudioStreamRandomizer,AudioStreamSynchronized,BackBufferCopy,BaseMaterial3D,BitMap,Bone2D,BoneMap,ButtonGroup,CPUParticles2D,CallbackTweener,CameraAttributes,CameraFeed,CameraServer,CameraTexture,CanvasGroup,CanvasItemMaterial,CanvasModulate,CanvasTexture,CapsuleShape2D,CharFXTransform,CheckBox,CheckButton,CircleShape2D,ClassDB,CollisionPolygon2D,ColorPalette,ColorPicker,ColorPickerButton,Compositor,CompositorEffect,ConcavePolygonShape2D,ConvexPolygonShape2D,Crypto,CryptoKey,Curve2D,Curve3D,CurveTexture,CurveXYZTexture,DPITexture,DTLSServer,DirAccess,DisplayServer,ENetConnection,EncodedObjectAsID,EngineDebugger,EngineProfiler,Environment,Expression,ExternalTexture,FileAccess,FlowContainer,FogMaterial,FoldableContainer,FoldableGroup,FontVariation,FramebufferCacheRD,GDExtension,GDExtensionManager,GDScriptNativeClass,GLTFAccessor,GLTFAnimation,GLTFBufferView,GLTFCamera,GLTFDocument,GLTFDocumentExtension,GLTFLight,GLTFMesh,GLTFNode,GLTFObjectModelProperty,GLTFPhysicsBody,GLTFPhysicsShape,GLTFSkeleton,GLTFSkin,GLTFSpecGloss,GLTFState,GLTFTexture,GLTFTextureSampler,GPUParticles2D,Geometry2D,Geometry3D,Gradient,GradientTexture1D,GradientTexture2D,GraphEdit,GraphElement,GridContainer,HMACContext,HTTPClient,HTTPRequest,HashingContext,IP,Image,ImageFormatLoader,ImageTexture,ImporterMesh,InputMap,InstancePlaceholder,IntervalTweener,ItemList,JNISingleton,JSON,JSONRPC,JavaClass,JavaClassWrapper,JavaObject,JavaScriptBridge,JavaScriptObject,Joint2D,KinematicCollision2D,KinematicCollision3D,LabelSettings,Light2D,LightOccluder2D,LightmapGIData,Lightmapper,Line2D,LinkButton,Logger,Marshalls,MenuBar,MenuButton,Mesh,MeshConvexDecompositionSettings,MeshDataTool,MeshInstance2D,MeshLibrary,MeshTexture,MethodTweener,MissingNode,MissingResource,MovieWriter,MultiMesh,MultiMeshInstance2D,MultiplayerAPI,MultiplayerSpawner,MultiplayerSynchronizer,Mutex,NativeMenu,NavigationAgent2D,NavigationAgent3D,NavigationLink2D,NavigationMesh,NavigationMeshGenerator,NavigationMeshSourceGeometryData2D,NavigationMeshSourceGeometryData3D,NavigationObstacle2D,NavigationPathQueryParameters2D,NavigationPathQueryParameters3D,NavigationPathQueryResult2D,NavigationPathQueryResult3D,NavigationPolygon,NavigationRegion2D,NavigationServer2D,NavigationServer3D,NinePatchRect,Node3D,Node3DGizmo,Noise,NoiseTexture2D,OS,Occluder3D,OccluderPolygon2D,OggPacketSequence,OggPacketSequencePlayback,OpenXRAPIExtension,OpenXRAction,OpenXRActionMap,OpenXRActionSet,OpenXRBindingModifier,OpenXRExtensionWrapper,OpenXRFutureResult,OpenXRHapticBase,OpenXRIPBinding,OpenXRInteractionProfile,OpenXRInteractionProfileMetadata,OptionButton,PCKPacker,PackedDataContainer,PackedDataContainerRef,PacketPeer,PanoramaSkyMaterial,Parallax2D,ParallaxBackground,ParallaxLayer,ParticleProcessMaterial,Path2D,PathFollow2D,Performance,PhysicalSkyMaterial,PhysicsDirectBodyState2D,PhysicsDirectBodyState3D,PhysicsDirectSpaceState2D,PhysicsDirectSpaceState3D,PhysicsMaterial,PhysicsPointQueryParameters2D,PhysicsPointQueryParameters3D,PhysicsRayQueryParameters2D,PhysicsRayQueryParameters3D,PhysicsServer2D,PhysicsServer2DManager,PhysicsServer3D,PhysicsServer3DManager,PhysicsServer3DRenderingServerHandler,PhysicsShapeQueryParameters2D,PhysicsShapeQueryParameters3D,PhysicsTestMotionParameters2D,PhysicsTestMotionParameters3D,PhysicsTestMotionResult2D,PhysicsTestMotionResult3D,PlaceholderMaterial,PlaceholderTexture2D,PolygonPathFinder,PortableCompressedTexture2D,ProceduralSkyMaterial,ProjectSettings,RDAttachmentFormat,RDFramebufferPass,RDPipelineColorBlendState,RDPipelineColorBlendStateAttachment,RDPipelineDepthStencilState,RDPipelineMultisampleState,RDPipelineRasterizationState,RDPipelineSpecializationConstant,RDSamplerState,RDShaderFile,RDShaderSPIRV,RDShaderSource,RDTextureFormat,RDTextureView,RDUniform,RDVertexAttribute,RandomNumberGenerator,RayCast2D,ReferenceRect,RegEx,RegExMatch,RemoteTransform2D,RenderData,RenderSceneBuffers,RenderSceneBuffersConfiguration,RenderSceneData,RenderingDevice,RenderingServer,ResourceFormatLoader,ResourceFormatSaver,ResourceImporter,ResourceLoader,ResourcePreloader,ResourceSaver,ResourceUID,RichTextEffect,RigidBody2D,SceneReplicationConfig,SceneState,ScriptBacktrace,ScriptExtension,ScriptLanguage,ScrollBar,SegmentShape2D,Semaphore,SeparationRayShape2D,Separator,ShaderGlobalsOverride,ShaderInclude,ShaderIncludeDB,Shape3D,ShapeCast2D,Shortcut,Skeleton2D,SkeletonModification2D,SkeletonModificationStack2D,SkeletonProfile,Skin,SkinReference,Sky,SpinBox,SplitContainer,StatusIndicator,StreamPeer,SubViewportContainer,SubtweenTweener,SurfaceTool,SyntaxHighlighter,SystemFont,TCPServer,TLSOptions,TabBar,TabContainer,TextEdit,TextLine,TextParagraph,TextServer,TextServerManager,Texture2DRD,Texture3D,TextureLayered,TextureProgressBar,ThemeContext,ThemeDB,Thread,TileData,TileMap,TileMapPattern,TileSetScenesCollectionSource,Time,TouchScreenButton,Translation,TranslationDomain,TranslationServer,Tree,TreeItem,TriangleMesh,UDPServer,UPNP,UPNPDevice,UndoRedo,UniformSetCacheRD,VSlider,VideoStream,VideoStreamPlayback,VideoStreamPlayer,VisibleOnScreenNotifier2D,VisualShader,VisualShaderNode,VoxelGIData,WeakRef,WebRTCPeerConnection,Window,WorkerThreadPool,World2D,World3D,WorldBoundaryShape2D,WorldEnvironment,X509Certificate,XMLParser,XRInterface,XRPose,XRServer,XRTracker,XRVRS,ZIPPacker,ZIPReader"
+
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
 
 jobs:
   build-templates:
     runs-on: windows-latest
-    name: Ultra-Light Template
-    timeout-minutes: 90  # 更短的超时（编译更快）
-    
-    # 只编译一个版本以加快测试
+    name: ${{ matrix.name }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Template (MSVC)
+            cache-name: windows-template
+            target: template_release
+            scons-flags: windows_subsystem=windows
+            bin: ./bin/godot.windows.template_release*.exe
+            compiler: msvc
+
+          - name: Template (MinGW)
+            cache-name: windows-template-gcc
+            target: template_release
+            scons-flags: use_mingw=yes
+            bin: ./bin/godot.windows.template_release*.exe
+            compiler: gcc
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Restore cache
+      - name: Restore Godot build cache
         uses: ./.github/actions/godot-cache-restore
         with:
-          cache-name: windows-template-ultralight
+          cache-name: ${{ matrix.cache-name }}
         continue-on-error: true
 
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      - name: Install D3D12 dependencies (最小化)
-        shell: bash
+      - name: Download Direct3D 12 SDK components (minimal)
+        id: d3d12-sdk
+        shell: pwsh
         run: |
-          # 最小化安装，只安装必需的
-          echo "安装D3D12依赖（最小化）..."
-          python misc/scripts/install_d3d12_sdk_windows.py --minimal
-          echo "安装完成"
+          try {
+            python ./misc/scripts/install_d3d12_sdk_windows.py --minimal
+            "D3D12_ENABLED=yes" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } catch {
+            Write-Warning "Direct3D 12 SDK installation failed, building without Direct3D 12 support."
+            "D3D12_ENABLED=no" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+        continue-on-error: true
 
-      # 可选：跳过不需要的库下载
-      # - name: Skip ANGLE download (not needed for 2D)
-      #   run: echo "跳过ANGLE下载，纯2D不需要"
+      - name: Download pre-built ANGLE static libraries
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
+        with:
+          repo: godotengine/godot-angle-static
+          version: tags/chromium/6601.2
+          file: godot-angle-static-x86_64-${{ matrix.compiler == 'gcc' && 'gcc' || 'msvc' }}-release.zip
+          target: angle/angle.zip
 
-      # - name: Skip AccessKit download (optional)
-      #   run: echo "跳过AccessKit下载"
-
-      - name: Compile Ultra-Light Template
-        shell: bash
+      - name: Extract pre-built ANGLE static libraries
+        shell: pwsh
         run: |
-          echo "开始编译极致精简版模板..."
-          echo "禁用了以下模块："
-          echo "- 所有3D/物理/XR模块"
-          echo "- 多媒体编解码器（除PNG外）"
-          echo "- 高级网络功能"
-          echo "- 不必要的内置库"
-          
-          # 直接调用scons以获得更清晰的日志
-          scons platform=windows \
-                target=template_release \
-                production=yes \
-                debug_symbols=no \
-                disable_3d=yes \
-                disable_physics_3d=yes \
-                disable_xr=yes \
-                windows_subsystem=windows \
-                num_jobs=4
-          
-          echo "编译完成！"
+          Expand-Archive -Force angle/angle.zip ${{ github.workspace }}/
 
-      # - name: Check generated files
-      #   run: git diff --exit-code
+      - name: Download pre-built AccessKit
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
+        with:
+          repo: AccessKit/accesskit-c
+          version: tags/0.17.0
+          file: accesskit-c-0.17.0.zip
+          target: accesskit-c-0.17.0/accesskit_c.zip
+
+      - name: Extract pre-built AccessKit
+        shell: pwsh
+        run: |
+          Expand-Archive -Force accesskit-c-0.17.0/accesskit_c.zip accesskit-c-0.17.0
+
+      - name: Compilation (templates only)
+        uses: ./.github/actions/godot-build
+        with:
+          # combine env SCONS_FLAGS and matrix overrides; pass detected d3d12 output
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }}
+          platform: windows
+          target: ${{ matrix.target }}
+
+      - name: Save Godot build cache
+        uses: ./.github/actions/godot-cache-save
+        with:
+          cache-name: ${{ matrix.cache-name }}
+        continue-on-error: true
+
+      - name: List build outputs
+        shell: pwsh
+        run: |
+          if (Test-Path -Path bin) {
+            Get-ChildItem -Path bin -Recurse | Select-Object FullName,Length
+          } else {
+            Write-Error "bin directory not found"
+            exit 1
+          }
+
+      - name: Prepare artifact (remove debug libs)
+        if: matrix.compiler == 'msvc'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path bin -Include *.exp,*.lib,*.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue || Write-Host "No debug artifacts to remove"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-artifact
         with:
-          name: godot-windows-template-ultralight
-          path: bin/godot.windows.template_release.x86_64.exe
+          name: ${{ matrix.cache-name }}
+          # use a wildcard to be robust against slight filename differences
+          path: ${{ matrix.bin }}
