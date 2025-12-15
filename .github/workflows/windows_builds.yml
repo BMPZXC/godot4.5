@@ -1,23 +1,29 @@
-name: 🏁 Windows Builds (Custom - No 3D/Physics/XR)
+name: 🏁 Windows Builds
 on:
   workflow_call:
   workflow_dispatch:
 
+# Global Settings
 env:
   SCONS_FLAGS: >-
-    production=yes
+    dev_mode=yes
+    module_text_server_fb_enabled=yes
     debug_symbols=no
-    "angle_libs=${{ github.workspace }}/"
-    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-    # 第一步：添加基础的 3D 禁用选项
     disable_3d=yes
     disable_physics_3d=yes
     disable_xr=yes
+    module_godot_physics_3d_enabled=no
+    module_jolt_physics_enabled=no
+    module_msdfgen_enabled=no
+    "angle_libs=${{ github.workspace }}/"
+    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
+   
 
 jobs:
   build-windows:
+    # Windows 10 with latest image
     runs-on: windows-latest
     name: ${{ matrix.name }}
     timeout-minutes: 120
@@ -26,12 +32,37 @@ jobs:
       matrix:
         include:
           - name: Editor (target=editor)
-            cache-name: windows-editor-no3d-v1
+            cache-name: windows-editor
             target: editor
             scons-flags: >-
               windows_subsystem=console
+              vsproj=yes
+              vsproj_gen_only=no
             bin: ./bin/godot.windows.editor.x86_64.exe
             compiler: msvc
+
+          - name: Editor w/ clang-cl (target=editor, use_llvm=yes)
+            cache-name: windows-editor-clang
+            target: editor
+            scons-flags: >-
+              windows_subsystem=console
+              use_llvm=yes
+            bin: ./bin/godot.windows.editor.x86_64.llvm.exe
+            compiler: clang
+
+          - name: Template (target=template_release)
+            cache-name: windows-template
+            target: template_release
+            bin: ./bin/godot.windows.template_release.x86_64.console.exe
+            compiler: msvc
+
+          - name: Template w/ GCC (target=template_release, use_mingw=yes)
+            cache-name: windows-template-gcc
+            # MinGW takes MUCH longer to compile; save time by only targeting Template.
+            target: template_release
+            scons-flags: use_mingw=yes
+            bin: ./bin/godot.windows.template_release.x86_64.console.exe
+            compiler: gcc
 
     steps:
       - name: Checkout
@@ -48,19 +79,24 @@ jobs:
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      - name: Install Direct3D 12 dependencies
-        shell: bash
+      - name: Download Direct3D 12 SDK components
+        shell: sh
+        id: d3d12-sdk
         run: |
-          echo "正在安装 D3D12 SDK 依赖..."
-          python misc/scripts/install_d3d12_sdk_windows.py
-          echo "D3D12 依赖安装完成"
+          if python ./misc/scripts/install_d3d12_sdk_windows.py; then
+            echo "D3D12_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Windows: Direct3D 12 SDK installation failed, building without Direct3D 12 support."
+            echo "D3D12_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+        continue-on-error: true
 
       - name: Download pre-built ANGLE static libraries
         uses: dsaltares/fetch-gh-release-asset@1.1.2
         with:
           repo: godotengine/godot-angle-static
           version: tags/chromium/6601.2
-          file: godot-angle-static-x86_64-msvc-release.zip
+          file: godot-angle-static-x86_64-${{ matrix.compiler == 'gcc' && 'gcc' || 'msvc' }}-release.zip
           target: angle/angle.zip
 
       - name: Extract pre-built ANGLE static libraries
@@ -80,7 +116,7 @@ jobs:
       - name: Compilation
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }}
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }}
           platform: windows
           target: ${{ matrix.target }}
 
@@ -91,15 +127,18 @@ jobs:
         continue-on-error: true
 
       - name: Prepare artifact
+        if: matrix.compiler == 'msvc'
         run: |
           Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
 
       - name: Upload artifact
+        if: matrix.compiler == 'msvc'
         uses: ./.github/actions/upload-artifact
         with:
           name: ${{ matrix.cache-name }}
 
-      - name: Basic test
+      - name: Unit tests
         run: |
           ${{ matrix.bin }} --version
-          echo "构建完成！禁用功能：3D、物理3D、XR"
+          ${{ matrix.bin }} --help
+          ${{ matrix.bin }} --test --force-colors
