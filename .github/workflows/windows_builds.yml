@@ -3,29 +3,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-# Global Settings
-env:
-  # 简化并修正SCONS参数：首先确保禁用D3D12，然后按需禁用其他模块
-  SCONS_FLAGS: >-
-    platform=windows
-    dev_mode=yes
-    debug_symbols=no
-    # 首要关键：明确禁用Direct3D 12
-    d3d12=no
-    # 按你的要求禁用3D、物理等核心功能
-    disable_3d=yes
-    disable_physics_3d=yes
-    disable_xr=yes
-    # 禁用特定的3D物理模块
-    module_godot_physics_3d_enabled=no
-    module_jolt_physics_enabled=no
-    module_msdfgen_enabled=no
-    # 静态库路径
-    "angle_libs=${{ github.workspace }}/"
-    "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-  SCONS_CACHE_MSVC_CONFIG: true
-  PYTHONIOENCODING: utf8
-
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -38,7 +15,6 @@ jobs:
           - name: Editor (MSVC)
             cache-name: windows-editor-no3d
             target: editor
-            scons-flags: windows_subsystem=console
             bin: ./bin/godot.windows.editor.x86_64.exe
             compiler: msvc
 
@@ -57,38 +33,28 @@ jobs:
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      # 重要：由于已设置 d3d12=no，跳过D3D12 SDK下载步骤
-      - name: Skip D3D12 SDK (explicitly disabled)
-        run: echo "D3D12 is explicitly disabled via d3d12=no, skipping SDK installation."
-
-      - name: Download pre-built ANGLE static libraries
-        uses: dsaltares/fetch-gh-release-asset@1.1.2
-        with:
-          repo: godotengine/godot-angle-static
-          version: tags/chromium/6601.2
-          file: godot-angle-static-x86_64-${{ matrix.compiler == 'gcc' && 'gcc' || 'msvc' }}-release.zip
-          target: angle/angle.zip
-
-      - name: Extract pre-built ANGLE static libraries
-        run: Expand-Archive -Force angle/angle.zip ${{ github.workspace }}/
-
-      - name: Download pre-built AccessKit
-        uses: dsaltares/fetch-gh-release-asset@1.1.2
-        with:
-          repo: AccessKit/accesskit-c
-          version: tags/0.17.0
-          file: accesskit-c-0.17.0.zip
-          target: accesskit-c-0.17.0/accesskit_c.zip
-
-      - name: Extract pre-built AccessKit
-        run: unzip -o accesskit-c-0.17.0/accesskit_c.zip
-
+      # 关键：在此步骤，直接使用硬编码的完整参数列表
       - name: Compilation
         uses: ./.github/actions/godot-build
-        # 关键：传递参数。这里 ${{ env.SCONS_FLAGS }} 已包含 d3d12=no
         with:
-          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }}
-          target: ${{ matrix.target }}
+          # 将所有SCons参数直接、完整地写在这里，避免通过env变量拼接
+          scons-flags: >
+            platform=windows
+            target=${{ matrix.target }}
+            dev_mode=yes
+            debug_symbols=no
+            d3d12=no
+            disable_3d=yes
+            disable_physics_3d=yes
+            disable_xr=yes
+            module_godot_physics_3d_enabled=no
+            module_jolt_physics_enabled=no
+            module_msdfgen_enabled=no
+            "angle_libs=${{ github.workspace }}/"
+            "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
+            windows_subsystem=console
+            redirect_build_objects=no
+          # 注意：这里不再引用 env.SCONS_FLAGS，也不拼接 matrix.scons-flags
 
       - name: Save Godot build cache
         uses: ./.github/actions/godot-cache-save
