@@ -124,7 +124,7 @@ jobs:
       - name: Prepare artifact
         run: |
           Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
-
+ 
       - name: Strip final binary          
         run: |
           "%VCToolsInstallDir%bin\Hostx64\x64\strip.exe" -s ./bin/godot.windows.template_release.x86_64.console.exe
