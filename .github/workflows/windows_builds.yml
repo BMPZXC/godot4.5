@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  SCONS_FLAGS: >-
+  SCONS_FLAGS: >
     dev_mode=yes
     module_text_server_fb_enabled=yes
     debug_symbols=no
@@ -21,6 +21,26 @@ env:
     module_jolt_physics_enabled=no
     module_msdfgen_enabled=no
     module_openxr_enabled=no
+    module_bmp_enabled=no
+    module_camera_enabled=no
+    module_csg_enabled=no
+    module_dds_enabled=no
+    module_enet_enabled=no
+    module_glslang_enabled=no
+    module_gridmap_enabled=no
+    module_hdr_enabled=no
+    module_jsonrpc_enabled=no
+    module_mbedtls_enabled=no
+    module_meshoptimizer_enabled=no
+    module_mobile_vr_enabled=no
+    module_noise_enabled=no
+    module_opensimplex_enabled=no
+    module_raycast_enabled=no
+    module_squish_enabled=no
+    module_theora_enabled=no
+    module_tinyexr_enabled=no
+    module_webxr_enabled=no
+    module_zip_enabled=no
     disabled_classes_file=.github/workflows/disabled_classes.txt
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
@@ -33,6 +53,13 @@ jobs:
     name: Windows Export Template (MSVC)
     timeout-minutes: 120
     steps:
+      - name: Clean cache for cold build
+        run: |
+          rmdir /s /q %APPDATA%\SCons        2>nul || exit 0
+          rmdir /s /q .scons_cache           2>nul || exit 0
+          shell: cmd
+          continue-on-error: true
+          
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -97,6 +124,11 @@ jobs:
       - name: Prepare artifact
         run: |
           Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
+          
+      - name: Strip final binary          # ← 新增
+        run: |
+          "%VCToolsInstallDir%bin\Hostx64\x64\strip.exe" -s ./bin/godot.windows.template_release.x86_64.console.exe
+        shell: cmd
 
       - name: Upload artifact
         uses: ./.github/actions/upload-artifact
