@@ -10,6 +10,9 @@ env:
     module_text_server_fb_enabled=yes
     debug_symbols=no
     production=yes
+    use_lto=yes
+    use_static_cpp=yes
+    optimize=size
     disable_3d=yes
     disable_navigation_3d=yes
     disable_physics_3d=yes
@@ -18,9 +21,9 @@ env:
     module_jolt_physics_enabled=no
     module_msdfgen_enabled=no
     module_openxr_enabled=no
+    disabled_classes_file=.github/workflows/disabled_classes.txt
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
-    disabled_classes_file=.github/workflows/disabled_classes.txt
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
 
