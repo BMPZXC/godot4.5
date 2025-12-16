@@ -9,12 +9,14 @@ jobs:
   static-checks:
     if: ${{ !vars.DISABLE_GODOT_CI || github.run_attempt > 1 || github.event_name == 'workflow_dispatch' }}
     name: 📊 Static checks
-    runs-on: ubuntu-latest          # ← 新增：给 job 一个运行环境
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4   # ← 新增：把源码拉下来
+      - uses: actions/checkout@v4
         with:
-          submodules: recursive     # 如果静态检查需要子模块也一起拉
+          submodules: recursive
+
+      - name: Install pre-commit
+        run: pip install pre-commit
 
       - name: Run pre-commit
-        uses: ./.github/workflows/static_checks.yml
+        run: pre-commit run --all-files --show-diff-on-failure
