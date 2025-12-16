@@ -23,7 +23,7 @@ env:
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
     
-    disabled_classes_file=disabled_classes.txt
+    disabled_classes_file=.github/workflows/disabled_classes.txt
     
   SCONS_CACHE_MSVC_CONFIG: true
   PYTHONIOENCODING: utf8
@@ -85,7 +85,7 @@ jobs:
       - name: Compilation
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }} disabled_classes_file=.github/workflows/disabled_classes.txt
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }}
           platform: windows
           target: template_release
 
