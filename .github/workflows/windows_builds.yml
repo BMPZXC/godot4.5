@@ -22,9 +22,6 @@ env:
     module_msdfgen_enabled=no
     module_openxr_enabled=no
 
-    # Disable Direct3D 12 by default on CI (prevents missing SDK errors)
-    d3d12=no
-
     # Keep ANGLE / AccessKit paths if you still fetch prebuilt binaries
     "angle_libs=${{ github.workspace }}/"
     "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.17.0/"
@@ -79,13 +76,13 @@ jobs:
         run: |
           try {
             python ./misc/scripts/install_d3d12_sdk_windows.py --minimal
-            "D3D12_ENABLED=yes" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            # Always write an output so subsequent steps can make a deterministic decision.
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "D3D12_ENABLED=yes"
           } catch {
-            Write-Warning "Direct3D 12 SDK installation failed, building without Direct3D 12 support."
-            "D3D12_ENABLED=no" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            exit 0
+            Write-Warning "Direct3D 12 SDK installation failed, will build without Direct3D 12 support."
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "D3D12_ENABLED=no"
+            # Don't rethrow — keep the job running so we can fall back to a non-D3D12 build.
           }
-        continue-on-error: true
 
       - name: Download pre-built ANGLE static libraries
         uses: dsaltares/fetch-gh-release-asset@1.1.2
@@ -113,11 +110,22 @@ jobs:
         run: |
           Expand-Archive -Force accesskit-c-0.17.0/accesskit_c.zip accesskit-c-0.17.0
 
-      - name: Compilation (templates only)
+      # Run exactly one compilation: with D3D12 if installer succeeded, otherwise without.
+      - name: Compilation (templates — without D3D12)
+        if: ${{ steps.d3d12-sdk.outputs.D3D12_ENABLED != 'yes' }}
         uses: ./.github/actions/godot-build
         with:
-          # combine env SCONS_FLAGS and matrix overrides
-          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }}
+          # combine env SCONS_FLAGS and matrix overrides; explicitly disable D3D12 here
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=no
+          platform: windows
+          target: ${{ matrix.target }}
+
+      - name: Compilation (templates — with D3D12)
+        if: ${{ steps.d3d12-sdk.outputs.D3D12_ENABLED == 'yes' }}
+        uses: ./.github/actions/godot-build
+        with:
+          # combine env SCONS_FLAGS and matrix overrides; enable D3D12 when available
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=yes
           platform: windows
           target: ${{ matrix.target }}
 
