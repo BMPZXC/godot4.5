@@ -57,8 +57,8 @@ jobs:
         run: |
           rmdir /s /q %APPDATA%\SCons        2>nul || exit 0
           rmdir /s /q .scons_cache           2>nul || exit 0
-          shell: cmd
-          continue-on-error: true
+        shell: cmd
+        continue-on-error: true
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -125,7 +125,7 @@ jobs:
         run: |
           Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force
 
-      - name: Strip final binary          
+      - name: Strip final binary
         run: |
           "%VCToolsInstallDir%bin\Hostx64\x64\strip.exe" -s ./bin/godot.windows.template_release.x86_64.console.exe
         shell: cmd
