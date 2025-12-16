@@ -6,17 +6,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 仅保留第一阶段：静态检查
   static-checks:
     if: ${{ !vars.DISABLE_GODOT_CI || github.run_attempt > 1 || github.event_name == 'workflow_dispatch' }}
     name: 📊 Static checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+    uses: ./.github/workflows/static_checks.yml
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Run pre-commit
-        run: pre-commit run --all-files --show-diff-on-failure
+  # 已删除所有平台构建任务 (android-build, ios-build, linux-build, macos-build, windows-build, web-build)
