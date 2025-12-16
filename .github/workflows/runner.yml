@@ -6,10 +6,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 仅保留第一阶段：静态检查
   static-checks:
     if: ${{ !vars.DISABLE_GODOT_CI || github.run_attempt > 1 || github.event_name == 'workflow_dispatch' }}
     name: 📊 Static checks
-    uses: ./.github/workflows/static_checks.yml
+    runs-on: ubuntu-latest          # ← 新增：给 job 一个运行环境
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4   # ← 新增：把源码拉下来
+        with:
+          submodules: recursive     # 如果静态检查需要子模块也一起拉
 
-  # 已删除所有平台构建任务 (android-build, ios-build, linux-build, macos-build, windows-build, web-build)
+      - name: Run pre-commit
+        uses: ./.github/workflows/static_checks.yml
