@@ -85,11 +85,7 @@ jobs:
       - name: Compilation
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: |
-            ${{ env.SCONS_FLAGS }}
-            ${{ matrix.scons-flags }}
-            d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }}
-            disabled_classes_file=.github/workflows/disabled_classes.txt
+          scons-flags: ${{ env.SCONS_FLAGS }} ${{ matrix.scons-flags }} d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }} disabled_classes_file=.github/workflows/disabled_classes.txt
           platform: windows
           target: template_release
 
